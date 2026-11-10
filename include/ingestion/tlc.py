@@ -1,3 +1,9 @@
+import time
+from pathlib import Path
+
+import requests
+
+
 '''
 Helpers for downloading NYC TLC Trip record data
 '''
@@ -29,3 +35,8 @@ def s3_key(service: str, year: int, month: int) -> str:
     """
     filename = f"{service}_tripdata_{year}-{month:02d}.parquet"
     return f"raw/{service}/{year}/{month:02d}/{filename}"
+
+class MonthNotAvailable(Exception):
+     """Raised when TLC hasn't published the requested month yet."""
+
+def download_file(url: str, dest: str | Path, retries: int = 3, backoff_seconds: int = 5) -> Path:
