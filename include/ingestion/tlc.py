@@ -40,3 +40,30 @@ class MonthNotAvailable(Exception):
      """Raised when TLC hasn't published the requested month yet."""
 
 def download_file(url: str, dest: str | Path, retries: int = 3, backoff_seconds: int = 5) -> Path:
+    """Download url to dest, retrying on network errors. Returns the saved path."""
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dest.with_suffix(dest.suffix + ".part")
+
+    for attempt in range(1, retries + 1):
+        try:
+            with requests.get(url, stream=True, timeout=60) as resp:
+                if resp.status_code in (403, 404):
+                    raise MonthNotAvailable(f"File not published: {url}")
+                resp.raise_for_status()
+
+                with open(tmp, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                        f.write(chunk)
+
+            tmp.rename(dest)
+            return dest
+
+        except MonthNotAvailable:
+            raise
+        except requests.RequestException as err:
+            if attempt == retries:
+                raise
+            wait = backoff_seconds * 2 ** (attempt - 1)
+            print(f"Attempt {attempt} failed ({err}); retrying in {wait}s")
+            time.sleep(wait)
