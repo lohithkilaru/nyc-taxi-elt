@@ -1,12 +1,19 @@
-"""Load one month of NYC TLC taxi trips from the TLC website into Snowflake RAW."""
+"""Load one month of NYC TLC taxi trips from the TLC website into Snowflake RAW.
+
+Scheduled runs on the first day of each month to check if the previous month's data is available to load successfully.
+Manual runs can be triggered to load a specific month's data from the Astronomer UI
+
+"""
 
 import os 
 from datetime import datetime, timedelta
 
+import requests
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.sdk import Param, dag, task
+from airflow.timetables.trigger import CronTriggerTimetable
 
-from include.ingestion.tlc import ingest_month
+from include.ingestion.tlc import build_url,ingest_month
 
 
 SERVICES = ["yellow", "green"]
@@ -20,23 +27,40 @@ def file_name(service: str, year: int, month: int) -> str:
 
 @dag(
     dag_id = "nyc_taxi_monthly",
-    schedule = None,
+    schedule = CronTriggerTimetable("0 6 1 * *", timezone = "UTC"),
     start_date = datetime(2025, 9 , 1),
     catchup = False,
+    max_active_runs=3,
     default_args = {"retries": 1, "retry_delay": timedelta(minutes = 2)},
     params = {
-        "year": Param(2026, type = "integer", minimum = 2009),
-        "month": Param(8, type = "integer", minimum = 1, maximum = 12),
+        "year": Param(None, type=["null", "integer"], minimum = 2009),
+        "month": Param(None, type=["null", "integer"], minimum = 1, maximum = 12),
     },
     tags = ["nyc_taxi"]
 )
 def nyc_taxi_monthly():
 
     @task
-    def ingest(service: str, **context) -> dict:
-        """Download, validate and upload one month to S3"""
+    def target_month(**context) -> dict:
+        """Pick the month to load the params if given, otherwise default to the previous month of the run date"""
         params = context["params"]
-        return ingest_month(service,params["year"],params["month"], bucket = os.environ["S3_BUCKET"])
+        if params.get("year") and params.get("month"):
+            return {"year": params["year"], "month": params["month"]}
+
+        run_date = context.get("logical_date") or context["dag_run"].run_after
+        last_month = run_date.replace(day=1) - timedelta(days=1)
+        return {"year": last_month.year, "month": last_month.month}
+
+    @task.sensor(poke_interval=timedelta(hours = 12), timeout=timedelta(days = 75), mode="reschedule")
+    def wait_for_file(service: str, target: dict) -> bool:
+        """Succeed if TLC has published a new file"""
+        url = build_url(service, target["year"], target["month"])
+        return requests.head(url,timeout = 30).status_code == 200
+
+    @task
+    def ingest(service: str, target: dict) -> dict:
+        """Download, validate and upload one month to S3"""
+        return ingest_month(service,target["year"],target["month"], bucket = os.environ["S3_BUCKET"])
 
     @task
     def load(summary: dict) -> dict:
@@ -77,8 +101,11 @@ def nyc_taxi_monthly():
             raise ValueError(f"{name}: file has {expected:,} rows but Snowflake has {loaded:,}")
         print(f"{name}: {loaded:,} rows loaded and reconciled ✅")
 
+    target = target_month()
     for service in SERVICES:
-        summary = ingest.override(task_id=f"ingest_{service}")(service)
+        waited = wait_for_file.override(task_id = f"wait_{service}")(service,target)
+        summary = ingest.override(task_id=f"ingest_{service}")(service,target)
+        waited >> summary
         loaded = load.override(task_id=f"load_{service}")(summary)
         check_row_count.override(task_id=f"check_{service}")(loaded)
 
