@@ -1,0 +1,20 @@
+name:nyc_taxi
+version: "1.0.0"
+profile: nyc_taxi
+
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+models:
+  nyc_taxi:
+    staging:
+      +schema: STAGING
+      +materialized: view
+
+seeds:
+  nyc_taxi:
+    +schema: STAGING
+

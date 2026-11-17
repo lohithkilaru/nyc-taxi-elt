@@ -1,0 +1,15 @@
+version: 2
+
+sources: 
+  - name: raw
+    database: NYC_TAXI
+    schema: RAW
+    loaded_at_field: _loaded_at
+    freshness:
+      warn_after: {count: 35, period: day}
+      error_after: {count: 65, period: day}
+    tables: 
+      - name: yellow_trips
+        description: "Yellow taxi trips, loaded monthly by the nyc_taxi_monthly DAG."
+      - name: green_trips
+        description: "Green taxi trips, loaded monthly by the nyc_taxi_monthly DAG."
