@@ -1,0 +1,40 @@
+version: 2 
+
+models:
+  - name: stg_yellow_trips
+    description: "Yellow taxi trips renamed and cast to the shared trip schema. One row per raw row."
+    columns:
+      - name: service_type
+        data_tests:
+          - accepted_values:
+              values: ["yellow"]
+      - name: pickup_at
+        data_tests: [not_null]
+      - name: dropoff_at
+        data_tests: [not_null]
+      - name: source_file
+        data_tests: [not_null]
+      - name: source_month
+        data_tests: [not_null]
+
+  - name: stg_green_trips
+    description: "Green taxi trips, renamed and cast to the shared trip schema. One row per raw row."
+    columns:
+      - name: service_type
+        data_tests:
+          - accepted_values:
+              values: ["green"]
+      - name: pickup_at
+        data_tests: [not_null]
+      - name: dropoff_at
+        data_tests: [not_null]
+      - name: source_file
+        data_tests: [not_null]
+      - name: source_month
+        data_tests: [not_null]
+
+  - name: stg_taxi_zones
+    description: "NYC taxi zones from the TLC lookup file."
+    columns:
+      - name: zone_id
+        data_tests: [unique, not_null]
