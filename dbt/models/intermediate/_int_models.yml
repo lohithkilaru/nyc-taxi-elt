@@ -1,0 +1,38 @@
+version: 2 
+
+models:
+  - name: int_trips_unioned
+    description: "Yellow and green trips stacked into one shared schema. One row per raw row."
+  
+  - name: int_trips_checked
+    description: "Every trip with a surrogate trip_id and a reject_reason (null when the trip passes all rules)."
+  
+  - name: int_trips_validated
+    description: "Trips that have passed all the data quality rules. One row per unique trip. Feeds the marts"
+    columns:
+      - name: trip_id
+        data_tests:
+          - unique 
+          - not_null
+      - name: service_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["yellow", "green"]
+
+  - name: int_trip_rejects
+    description: "Trips that have been rejected due to failing data quality rules. Records are quarantined not deleted"
+    columns:
+      - name: reject_reason 
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - missing_timestamp
+                  - pickup_outside_file_month
+                  - dropoff_not_after_pickup
+                  - trip_over_24h
+                  - negative_amount
+                  - non_positive_distance
+                  - duplicate_trip
