@@ -15,6 +15,9 @@ models:
     intermediate:
       +schema: INTERMEDIATE
       +materialized: view
+    marts:
+      +schema: MARTS
+      +materialized: table
 
 seeds:
   nyc_taxi:

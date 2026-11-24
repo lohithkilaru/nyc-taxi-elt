@@ -1,0 +1,147 @@
+version: 2 
+
+models: 
+
+  # ---------- dimensions ----------
+  - name: dim_zone 
+    description: "One row per NYC zone, with borough, service zone and an airport flag. Used for pickup and dropoff locations."
+    columns:
+      - name: zone_id
+        description: "Primary key: TLC taxi zone ID."
+        data_tests: [unique, not_null]
+      - name: is_airport
+        description: "True for JFK, LaGuardia and Newark airport zones."
+  
+  - name: dim_date
+    description: "One row per calendar day from 2025 through 2027."
+    columns:
+      - name: date_key
+        description: "Primary key: the date as a YYYYMMDD number, e.g. 20260814."
+        data_tests: [unique, not_null]
+
+  - name: dim_vendor
+    description: "Technology vendors that record trips, from the TLC data dictionary, plus any unseen codes."
+    columns:
+      - name: vendor_id
+        description: "Primary key: unique identifier for each technology vendor."
+        data_tests: [unique, not_null]
+
+  - name: dim_payment_type
+    description: "How each trip was paid, from the TLC data dictionary, plus any unseen codes."
+    columns:
+      - name: payment_type_id
+        data_tests: [unique, not_null]
+
+  - name: dim_rate_code
+    description: "The rate in effect for each trip, from the TLC data dictionary, plus any unseen codes."
+    columns:
+      - name: rate_code_id
+        data_tests: [unique, not_null]
+  
+  # ---------- fact ----------
+
+  - name: fact_trips
+    description: "One row per valid yellow or green taxi trip. Center of the star schema."
+    data_tests:
+      - dbt_utils.equal_rowcount:
+          arguments:
+            compare_model: ref('int_trips_validated')
+      - dbt_expectations.expect_row_count_to_be_between:
+          arguments:
+            min_value: 1000000
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "dropoff_at > pickup_at"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "fare_amount >= 0 and total_amount >= 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "trip_distance_mi > 0"
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "trip_duration_min <= 1440"
+    columns:
+      - name: trip_id
+        description: "Primary key: surrogate key hashed from service, vendor, timestamps, zones and total."
+        data_tests: [unique, not_null]
+      - name: pickup_date_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: pickup_zone_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_zone')
+                field: zone_id
+      - name: dropoff_zone_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_zone')
+                field: zone_id
+      - name: vendor_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_vendor')
+                field: vendor_id
+      - name: payment_type_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_payment_type')
+                field: payment_type_id
+      - name: rate_code_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_rate_code')
+                field: rate_code_id
+      - name: service_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["yellow", "green"]
+      - name: pickup_hour
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 23
+  # ---------- aggregates ----------
+
+  - name: agg_daily_zone_revenue
+    description: "Trips and revenue per day, pickup zone and service. Pre-aggregated from fct_trips for the dashboard."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [pickup_date_key, pickup_zone_id, service_type]
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "trips > 0"
+    columns:
+      - name: pickup_zone_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_zone')
+                field: zone_id
+
+  - name: agg_hourly_demand
+    description: "Trips and revenue per day, pickup hour and service. Pre-aggregated from fct_trips for the dashboard."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [pickup_date_key, pickup_hour, service_type]
+    columns:
+      - name: pickup_hour
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 23
