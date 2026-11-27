@@ -15,3 +15,7 @@ The zone look up file will be created like a seed in dbt
 - **Marts as tables** (fact incremental): read constantly, so fast reads matter more than storage.
 - **[N] dbt tests** including referential integrity (relationships), grain uniqueness
   (unique_combination_of_columns), row-count reconciliation and re-checked quality rules.
+
+
+
+Failure alerts via on_failure_callback on every task, firing only after retries are exhausted; logs a summary and optionally posts to Slack via a webhook kept in .env
