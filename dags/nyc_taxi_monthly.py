@@ -19,6 +19,8 @@ from include.ingestion.tlc import build_url,ingest_month
 SERVICES = ["yellow", "green"]
 TABLES = {"yellow": "RAW.YELLOW_TRIPS","green": "RAW.GREEN_TRIPS"}
 SNOWFLAKE_CONN_ID = "snowflake_default"
+DBT_PROJECT_DIR = "/usr/local/airflow/dbt"
+DBT_BIN = "/usr/local/airflow/dbt_venv/bin/dbt"
 
 
 def file_name(service: str, year: int, month: int) -> str:
@@ -99,15 +101,23 @@ def nyc_taxi_monthly():
         expected = summary["row_count"]
         if loaded != expected:
             raise ValueError(f"{name}: file has {expected:,} rows but Snowflake has {loaded:,}")
-        print(f"{name}: {loaded:,} rows loaded and reconciled ✅")
+        print(f"{name}: {loaded:,} rows loaded and reconciled")
+
+    @task.bash
+    def dbt_build() -> str:
+        """rebuild dbt project after the raw loads"""
+        return f"cd {DBT_PROJECT_DIR} && {DBT_BIN} deps && {DBT_BIN} build"
+
 
     target = target_month()
+    checks = []
     for service in SERVICES:
         waited = wait_for_file.override(task_id = f"wait_{service}")(service,target)
         summary = ingest.override(task_id=f"ingest_{service}")(service,target)
         waited >> summary
         loaded = load.override(task_id=f"load_{service}")(summary)
-        check_row_count.override(task_id=f"check_{service}")(loaded)
-
+        checks.append(check_row_count.override(task_id=f"check_{service}")(loaded))
+    
+    checks >> dbt_build()
 
 nyc_taxi_monthly()
