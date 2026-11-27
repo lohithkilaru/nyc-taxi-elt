@@ -2,7 +2,6 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-
 from include.ingestion.tlc import (
     EXPECTED_COLUMNS,
     SchemaMismatch,
@@ -31,10 +30,10 @@ def test_build_url_pads_single_digit_month():
 @pytest.mark.parametrize(
     "service, year, month",
     [
-        ("purple", 2026, 8),    # unknown service
-        ("yellow", 2026, 13),   # month too high
-        ("yellow", 2026, 0),    # month too low
-        ("yellow", 2008, 1),    # before TLC data exists
+        ("purple", 2026, 8),  # unknown service
+        ("yellow", 2026, 13),  # month too high
+        ("yellow", 2026, 0),  # month too low
+        ("yellow", 2008, 1),  # before TLC data exists
         ("yellow", "2026", 8),  # year as text
         ("yellow", 2026, 8.0),  # month as a decimal
     ],
@@ -46,11 +45,13 @@ def test_build_url_rejects_bad_input(service, year, month):
 
 # ---------- s3_key ----------
 
+
 def test_s3_key_layout():
     assert s3_key("yellow", 2026, 8) == "raw/yellow/2026/08/yellow_tripdata_2026-08.parquet"
 
 
 # ---------- validate_parquet ----------
+
 
 def make_parquet(path, columns, rows=3):
     """Write a small fake Parquet file with the given column names."""

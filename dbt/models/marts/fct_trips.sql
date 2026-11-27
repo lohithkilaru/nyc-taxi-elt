@@ -10,12 +10,12 @@ with trips as (
     select * from {{ ref('int_trips_validated') }}
 
     {% if is_incremental() %}
-    where source_month in (
-        select distinct source_month from {{ ref('int_trips_validated') }}
-        where loaded_at > (
-            select coalesce(max(loaded_at), '1900-01-01'::timestamp_ltz) from {{ this }}
+        where source_month in (
+            select distinct source_month from {{ ref('int_trips_validated') }}
+            where loaded_at > (
+                select coalesce(max(loaded_at), '1900-01-01'::timestamp_ltz) from {{ this }}
+            )
         )
-    )
     {% endif %}
 )
 
@@ -25,7 +25,7 @@ select
     trip_id,
 
     -- keys to dimensions
-    to_number(to_char(pickup_at::date, 'YYYYMMDD'))  as pickup_date_key,
+    to_number(to_char(pickup_at::date, 'YYYYMMDD')) as pickup_date_key,
     pickup_zone_id,
     dropoff_zone_id,
     vendor_id,
@@ -36,7 +36,7 @@ select
     service_type,
     pickup_at,
     dropoff_at,
-    hour(pickup_at)                                  as pickup_hour,
+    hour(pickup_at) as pickup_hour,
     trip_type,
     store_and_fwd_flag,
 

@@ -1,6 +1,8 @@
 with known as (
 
-    select vendor_id, vendor_name
+    select
+        vendor_id,
+        vendor_name
     from {{ ref('vendor_lookup') }}
 
 ),
@@ -11,8 +13,9 @@ unseen as (
         vendor_id,
         'Unknown (code ' || vendor_id || ')' as vendor_name
     from {{ ref('int_trips_validated') }}
-    where vendor_id is not null
-      and vendor_id not in (select vendor_id from known)
+    where
+        vendor_id is not null
+        and vendor_id not in (select vendor_id from known)
 
 )
 

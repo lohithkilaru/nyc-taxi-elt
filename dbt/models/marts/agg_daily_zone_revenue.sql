@@ -11,6 +11,6 @@ select
     sum(airport_fee) as airport_fee_total,
     avg(trip_distance_mi) as avg_distance_mi,
     avg(total_amount) as avg_revenue_per_trip
-from 
-    {{  ref('fct_trips')    }}
+from
+    {{ ref('fct_trips') }}
 group by 1, 2, 3

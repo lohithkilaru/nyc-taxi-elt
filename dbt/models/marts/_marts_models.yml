@@ -1,9 +1,9 @@
-version: 2 
+version: 2
 
-models: 
+models:
 
   # ---------- dimensions ----------
-  - name: dim_zone 
+  - name: dim_zone
     description: "One row per NYC zone, with borough, service zone and an airport flag. Used for pickup and dropoff locations."
     columns:
       - name: zone_id
@@ -11,7 +11,7 @@ models:
         data_tests: [unique, not_null]
       - name: is_airport
         description: "True for JFK, LaGuardia and Newark airport zones."
-  
+
   - name: dim_date
     description: "One row per calendar day from 2025 through 2027."
     columns:
@@ -37,16 +37,16 @@ models:
     columns:
       - name: rate_code_id
         data_tests: [unique, not_null]
-  
+
   # ---------- fact ----------
 
-  - name: fact_trips
+  - name: fct_trips
     description: "One row per valid yellow or green taxi trip. Center of the star schema."
     data_tests:
       - dbt_utils.equal_rowcount:
           arguments:
             compare_model: ref('int_trips_validated')
-      - dbt_expectations.expect_row_count_to_be_between:
+      - dbt_expectations.expect_table_row_count_to_be_between:
           arguments:
             min_value: 1000000
       - dbt_utils.expression_is_true:
@@ -63,7 +63,6 @@ models:
             expression: "trip_duration_min <= 1440"
     columns:
       - name: trip_id
-        description: "Primary key: surrogate key hashed from service, vendor, timestamps, zones and total."
         data_tests: [unique, not_null]
       - name: pickup_date_key
         data_tests:
@@ -107,7 +106,10 @@ models:
           - accepted_values:
               arguments:
                 values: ["yellow", "green"]
+      - name: avg_speed_mph
+        description: "Trip distance divided by duration, in miles per hour. Null when duration is zero."
       - name: pickup_hour
+        description: "Hour of day (0–23) of the pickup, for demand-by-hour analysis."
         data_tests:
           - dbt_utils.accepted_range:
               arguments:

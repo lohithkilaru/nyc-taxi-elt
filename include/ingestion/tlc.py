@@ -1,16 +1,17 @@
 import time
 from pathlib import Path
 
-import requests
-import pyarrow.parquet as pq
 import boto3
+import pyarrow.parquet as pq
+import requests
 
-'''
+"""
 Helpers for downloading NYC TLC Trip record data
-'''
+"""
 
 BASE_URL = "https://d37ci6vzurychx.cloudfront.net/trip-data"
 VALID_SERVICES = {"yellow", "green"}
+
 
 def build_url(service: str, year: int, month: int) -> str:
     """Return the download URL for one month of TLC trip data.
@@ -37,8 +38,10 @@ def s3_key(service: str, year: int, month: int) -> str:
     filename = f"{service}_tripdata_{year}-{month:02d}.parquet"
     return f"raw/{service}/{year}/{month:02d}/{filename}"
 
+
 class MonthNotAvailable(Exception):
-     """Raised when TLC hasn't published the requested month yet."""
+    """Raised when TLC hasn't published the requested month yet."""
+
 
 def download_file(url: str, dest: str | Path, retries: int = 3, backoff_seconds: int = 5) -> Path:
     """Download url to dest, retrying on network errors. Returns the saved path."""
@@ -69,26 +72,59 @@ def download_file(url: str, dest: str | Path, retries: int = 3, backoff_seconds:
             print(f"Attempt {attempt} failed ({err}); retrying in {wait}s")
             time.sleep(wait)
 
+
 class SchemaMismatch(Exception):
     """Raised when a downloaded file is missing expected columns or has no rows."""
 
+
 EXPECTED_COLUMNS = {
     "yellow": {
-        "vendorid", "tpep_pickup_datetime", "tpep_dropoff_datetime",
-        "passenger_count", "trip_distance", "ratecodeid", "store_and_fwd_flag",
-        "pulocationid", "dolocationid", "payment_type", "fare_amount", "extra",
-        "mta_tax", "tip_amount", "tolls_amount", "improvement_surcharge",
-        "total_amount", "congestion_surcharge", "airport_fee", "cbd_congestion_fee",
+        "vendorid",
+        "tpep_pickup_datetime",
+        "tpep_dropoff_datetime",
+        "passenger_count",
+        "trip_distance",
+        "ratecodeid",
+        "store_and_fwd_flag",
+        "pulocationid",
+        "dolocationid",
+        "payment_type",
+        "fare_amount",
+        "extra",
+        "mta_tax",
+        "tip_amount",
+        "tolls_amount",
+        "improvement_surcharge",
+        "total_amount",
+        "congestion_surcharge",
+        "airport_fee",
+        "cbd_congestion_fee",
     },
     "green": {
-        "vendorid", "lpep_pickup_datetime", "lpep_dropoff_datetime",
-        "store_and_fwd_flag", "ratecodeid", "pulocationid", "dolocationid",
-        "passenger_count", "trip_distance", "fare_amount", "extra", "mta_tax",
-        "tip_amount", "tolls_amount", "ehail_fee", "improvement_surcharge",
-        "total_amount", "payment_type", "trip_type", "congestion_surcharge",
+        "vendorid",
+        "lpep_pickup_datetime",
+        "lpep_dropoff_datetime",
+        "store_and_fwd_flag",
+        "ratecodeid",
+        "pulocationid",
+        "dolocationid",
+        "passenger_count",
+        "trip_distance",
+        "fare_amount",
+        "extra",
+        "mta_tax",
+        "tip_amount",
+        "tolls_amount",
+        "ehail_fee",
+        "improvement_surcharge",
+        "total_amount",
+        "payment_type",
+        "trip_type",
+        "congestion_surcharge",
         "cbd_congestion_fee",
     },
 }
+
 
 def validate_parquet(path: str | Path, service: str) -> int:
     """Check a downloaded file has the expected columns and at least one row.
@@ -114,6 +150,7 @@ def validate_parquet(path: str | Path, service: str) -> int:
 
     return row_count
 
+
 def upload_to_s3(local_path: str | Path, bucket: str, key: str, profile: str | None = None) -> str:
     """Upload a local file to s3://bucket/key and confirm the size matches.
 
@@ -135,6 +172,7 @@ def upload_to_s3(local_path: str | Path, bucket: str, key: str, profile: str | N
         )
 
     return f"s3://{bucket}/{key}"
+
 
 def ingest_month(
     service: str,

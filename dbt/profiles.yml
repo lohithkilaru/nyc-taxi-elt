@@ -11,3 +11,13 @@ nyc_taxi:
       database: NYC_TAXI
       schema: STAGING
       threads: 4
+    ci:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      role: TRANSFORMER
+      warehouse: TRANSFORM_WH
+      database: NYC_TAXI
+      schema: STAGING
+      threads: 4
