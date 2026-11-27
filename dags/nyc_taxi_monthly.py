@@ -14,13 +14,14 @@ from airflow.sdk import Param, dag, task
 from airflow.timetables.trigger import CronTriggerTimetable
 
 from include.ingestion.tlc import build_url,ingest_month
+from include.alerts import notify_failure
 
 
 SERVICES = ["yellow", "green"]
 TABLES = {"yellow": "RAW.YELLOW_TRIPS","green": "RAW.GREEN_TRIPS"}
 SNOWFLAKE_CONN_ID = "snowflake_default"
 DBT_PROJECT_DIR = "/usr/local/airflow/dbt"
-DBT_BIN = "/usr/local/airflow/dbt_venv/bin/dbt"
+DBT_BIN = "/usr/local/airflow/dbt_venv/bin/dbt_BROKEN"
 
 
 def file_name(service: str, year: int, month: int) -> str:
@@ -33,7 +34,7 @@ def file_name(service: str, year: int, month: int) -> str:
     start_date = datetime(2025, 9 , 1),
     catchup = False,
     max_active_runs=3,
-    default_args = {"retries": 1, "retry_delay": timedelta(minutes = 2)},
+    default_args = {"retries": 1, "retry_delay": timedelta(minutes = 2), "on_failure_callback": notify_failure},
     params = {
         "year": Param(None, type=["null", "integer"], minimum = 2009),
         "month": Param(None, type=["null", "integer"], minimum = 1, maximum = 12),
